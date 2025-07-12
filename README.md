@@ -5,7 +5,7 @@
 
 <br>
 
-## <a name="日本語"></a> 🇯🇵 日本語
+## <a name="日本語"></a> 日本語
 
 これは、C++の標準ライブラリで提供される主要なシーケンスコンテナ（`std::vector`, `std::deque`, `std::list`）の基本的な性能を比較するためのベンチマークプログラムです。
 
@@ -101,7 +101,7 @@ struct BenchmarkConfig {
 ---
 <br>
 
-## <a name="english"></a> 🇬🇧 English
+## <a name="english"></a> English
 
 This is a benchmark program to compare the basic performance of major C++ Standard Library sequence containers: `std::vector`, `std::deque`, and `std::list`.
 
