@@ -1,6 +1,7 @@
 [日本語](#日本語) | [English](#english)
 
 # C++コンテナベンチマーク (C++ Container Benchmark)
+[![C++ CI](https://github.com/sin4auto/container-benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/sin4auto/container-benchmark/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <br>
