@@ -1,13 +1,6 @@
 \# C++コンテナベンチマーク (C++ Container Benchmark)
 
 
-
-\[!\[License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-\[!\[Language](https://img.shields.io/badge/Language-C%2B%2B-blue.svg)](https://isocpp.org/)
-
-
-
 これは、C++の標準ライブラリで提供される主要なシーケンスコンテナ（`std::vector`, `std::deque`, `std::list`）の基本的な性能を比較するためのベンチマークプログラムです。
 
 
