@@ -15,7 +15,7 @@
 
 /**
  * @brief 実行時間を計測するクラス
- * 
+ *
  * このクラスはRAIIパターンを使用して、スコープの開始から終了までの時間を自動的に計測します。
  * コンストラクタで計測を開始し、デストラクタでその結果を出力します。
  */
@@ -34,9 +34,7 @@ public:
     ~CScopeProfiler() {
         auto elapsed_time = std::chrono::high_resolution_clock::now() - m_start_time;
         double elapsed_time_milli = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(elapsed_time).count();
-        std::cout << std::fixed << std::setprecision(2)
-                  << "実行時間 (" << m_mark << "): "
-                  << elapsed_time_milli << " ms " << std::endl;
+        std::cout << std::fixed << std::setprecision(2) << "実行時間 (" << m_mark << "): " << elapsed_time_milli << " ms " << std::endl;
     }
 
 private:
@@ -55,10 +53,7 @@ struct BenchmarkConfig {
     static constexpr DataType MaxRandomValue = 100;  // 生成する乱数の最大値
 };
 
-
-// ===== ヘルパー関数群 (内部リンケージ) =====
-namespace {
-    
+// ===== ヘルパー関数群 =====
 /**
  * @brief ベンチマークの元データとなる固定長配列に乱数を格納する
  * @tparam T 格納するデータの型
@@ -73,7 +68,6 @@ void generate_source_data(std::array<T, N>& src_array, T min_val, T max_val) {
     std::random_device seed_gen;  // 真の乱数生成器（シード用）
     std::mt19937 random_engine(seed_gen());  // メルセンヌツイスタ乱数エンジン
     std::uniform_int_distribution<T> dist(min_val, max_val);  // 一様分布
-
     // ----- 固定長配列に乱数値を格納 -----
     std::cout << "● 固定長配列（元データ）に乱数を格納\n";
     {
@@ -84,21 +78,8 @@ void generate_source_data(std::array<T, N>& src_array, T min_val, T max_val) {
 }
 
 /**
- * @brief 配列のデータを指定されたコンテナにコピーするテンプレート関数
- * 
- * @tparam Container コンテナの型
- * @param src コピー元の配列
- * @param container コピー先のコンテナ
- */
-template <typename T, size_t N, typename Container>
-void copy_to_container(const std::array<T, N>& src, Container& container) {
-    // 注意: この関数は既に空のコンテナに対して実行することを想定しています
-    std::copy(src.begin(), src.end(), std::back_inserter(container));
-}
-
-/**
  * @brief コンテナの先頭n個の要素を出力する関数
- * 
+ *
  * @tparam Container コンテナの型
  * @param container 対象のコンテナ
  * @param n 表示する要素数
@@ -107,13 +88,10 @@ void copy_to_container(const std::array<T, N>& src, Container& container) {
 template <typename Container>
 void print_first_n_elements(const Container& container, size_t n, const std::string& container_name) {
     std::cout << container_name << ": ";
-    
     // コンテナの要素数より多く表示しようとするのを防ぐ
     size_t elements_to_print = std::min(n, container.size());
     // STLアルゴリズムを使い、ループを明示的に書かずに出力する
-    std::copy_n(container.begin(), elements_to_print, 
-                std::ostream_iterator<typename Container::value_type>(std::cout, " "));
-    
+    std::copy_n(container.begin(), elements_to_print, std::ostream_iterator<typename Container::value_type>(std::cout, " "));
     std::cout << std::endl;
 }
 
@@ -155,64 +133,58 @@ void benchmark_variance(const std::string& name, const Container& container, dou
     std::cout << std::fixed << std::setprecision(1) << name << "の分散: " << variance << std::endl;
 }
 
-} // anonymous namespace
-
-
 /**
  * @brief メイン関数 - 各種コンテナのベンチマークを実行
  */
 int main() {
-    using Config = BenchmarkConfig;
-
     std::cout << "===== C++コンテナベンチマーク =====\n";
-    std::cout << "要素数: " << Config::Size << "\n\n";
+    std::cout << "要素数: " << BenchmarkConfig::Size << "\n\n";
 
     // 元データとなる固定長配列
-    static std::array<Config::DataType, Config::Size> src_array;
+    static std::array<BenchmarkConfig::DataType, BenchmarkConfig::Size> src_array;
 
     // 各種コンテナの定義
-    std::vector<Config::DataType> vec;  // 動的配列
-    std::deque<Config::DataType> deq;   // 両端キュー
-    std::list<Config::DataType> lis;    // 双方向リスト
+    std::vector<BenchmarkConfig::DataType> vec;  // 動的配列
+    std::deque<BenchmarkConfig::DataType> deq;   // 両端キュー
+    std::list<BenchmarkConfig::DataType> lis;    // 双方向リスト
 
     // ----- 各ベンチマークの実行 -----
-    
+
     // 元データの生成
-    generate_source_data(src_array, Config::MinRandomValue, Config::MaxRandomValue);
-    
+    generate_source_data(src_array, BenchmarkConfig::MinRandomValue, BenchmarkConfig::MaxRandomValue);
+
     // データコピー性能の計測
     std::cout << "\n● データコピー性能\n";
     // vector（メモリ予約なし）へのコピー
     vec.clear();
     {
         CScopeProfiler profiler("vector_reserveなし");
-        copy_to_container(src_array, vec);
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vec));
     }
     // vector（メモリ予約あり）へのコピー
     // これ以降のベンチマークで使用する`vec`はこの状態で初期化される
     vec.clear();
-    vec.reserve(Config::Size);
+    vec.reserve(BenchmarkConfig::Size);
     {
         CScopeProfiler profiler("vector_reserveあり");
-        copy_to_container(src_array, vec);
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vec));
     }
     // dequeへのコピー
     deq.clear();
     {
         CScopeProfiler profiler("deque");
-        copy_to_container(src_array, deq);
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(deq));
     }
     // listへのコピー
     lis.clear();
     {
         CScopeProfiler profiler("list");
-        copy_to_container(src_array, lis);
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(lis));
     }
 
     // シーケンシャル読み取り性能の計測
-    std::cout << "\n● シーケンシャル読み取り性能 (" << Config::ReadingRepeat << "回繰り返し)\n";
+    std::cout << "\n● シーケンシャル読み取り性能 (" << BenchmarkConfig::ReadingRepeat << "回繰り返し)\n";
     // 各コンテナのデータを指定回数読み取るラムダ関数。
-    //
     // 注意:
     // 単純に要素を読み取るだけのループは、コンパイラの最適化（デッドコード削除）によって
     // 処理全体が削除されてしまう可能性があります。
@@ -221,7 +193,7 @@ int main() {
     // 無視できない副作用と見なすため、ループが維持され、純粋な読み取り性能を計測できます。
     auto read_container = [](const auto& container) {
         volatile typename std::decay_t<decltype(container)>::value_type sink{};
-        for (size_t n = 0; n < Config::ReadingRepeat; ++n) {
+        for (size_t n = 0; n < BenchmarkConfig::ReadingRepeat; ++n) {
             for (const auto& element : container) {
                 sink = element;
             }
@@ -245,10 +217,10 @@ int main() {
     }
 
     // 先頭要素の表示
-    std::cout << "\n● 先頭 " << Config::DisplayCount << " 要素の確認\n";
-    print_first_n_elements(vec, Config::DisplayCount, "vector");
-    print_first_n_elements(deq, Config::DisplayCount, "deque");
-    print_first_n_elements(lis, Config::DisplayCount, "list");
+    std::cout << "\n● 先頭 " << BenchmarkConfig::DisplayCount << " 要素の確認\n";
+    print_first_n_elements(vec, BenchmarkConfig::DisplayCount, "vector");
+    print_first_n_elements(deq, BenchmarkConfig::DisplayCount, "deque");
+    print_first_n_elements(lis, BenchmarkConfig::DisplayCount, "list");
 
     // 統計計算（平均値）の性能を計測
     std::cout << "\n● 平均値計算の性能\n";
@@ -261,6 +233,6 @@ int main() {
     benchmark_variance("vector", vec, avg_vec);
     benchmark_variance("deque", deq, avg_deq);
     benchmark_variance("list", lis, avg_lis);
-    
+
     return 0;
 }
