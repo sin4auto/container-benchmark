@@ -130,6 +130,11 @@ double variance(const Container& container) {
     return sum_of_squares / static_cast<double>(container.size());
 }
 
+/**
+ * @brief ベンチマークのメイン処理
+ *
+ * 各種コンテナに対して、データコピー、シーケンシャル読み取り、統計計算の性能を計測します。
+ */
 void run() {
     std::cout << "===== C++コンテナベンチマーク =====\n";
     std::cout << "要素数: " << BenchmarkConfig::Size << "\n\n";
@@ -256,9 +261,7 @@ void run() {
     std::cout << "\n===== ベンチマーク終了 =====\n";
 }
 
-/**
- * @brief メイン関数 - 各種コンテナのベンチマークを実行
- */
+// ===== エントリポイント =====
 int main() {
     CScopeProfiler profiler("全体処理");
     run();
