@@ -69,7 +69,6 @@ void generate_source_data(std::array<T, N>& src_array, T min_val, T max_val) {
     std::mt19937 random_engine(seed_gen());  // メルセンヌツイスタ乱数エンジン
     std::uniform_int_distribution<T> dist(min_val, max_val);  // 一様分布
     // ----- 固定長配列に乱数値を格納 -----
-    std::cout << "● 固定長配列（元データ）に乱数を格納\n";
     {
         CScopeProfiler profiler("配列生成_乱数");
         // 配列の各要素に乱数を格納
@@ -96,47 +95,43 @@ void print_first_n_elements(const Container& container, size_t n, const std::str
 }
 
 /**
- * @brief 平均値計算の性能を計測し、結果を返すヘルパー関数
+ * @brief コンテナの平均値を計算して返すヘルパー関数
  */
 template<typename Container>
-double benchmark_average(const std::string& name, const Container& container) {
-    double avg = 0.0;
-    {
-        CScopeProfiler profiler(name + "_平均値");
-        if (!container.empty()) {
-            avg = std::accumulate(container.begin(), container.end(), 0.0) / container.size();
-        }
+double average(const Container& container) {
+    if (container.empty()) {
+        return 0.0;
     }
-    std::cout << std::fixed << std::setprecision(3) << name << "の平均値: " << avg << std::endl;
-    return avg;
+    const double sum = std::accumulate(container.begin(), container.end(), 0.0);
+    return sum / static_cast<double>(container.size());
 }
 
 /**
- * @brief 分散計算の性能を計測し、結果を出力するヘルパー関数
+ * @brief コンテナの分散を計算して返すヘルパー関数
  */
 template<typename Container>
-void benchmark_variance(const std::string& name, const Container& container, double average) {
-    double variance = 0.0;
-    {
-        CScopeProfiler profiler(name + "_分散");
-        if (!container.empty()) {
-            // 各要素と平均との差の二乗和を計算
-            const double sum_of_squares = std::accumulate(container.begin(), container.end(), 0.0,
-                [average](double current_sum, const auto& element) {
-                    const double diff = element - average;
-                    return current_sum + diff * diff;
-                });
-            // 分散を計算
-            variance = sum_of_squares / container.size();
-        }
+double variance(const Container& container) {
+    if (container.empty()) {
+        return 0.0;
     }
-    std::cout << std::fixed << std::setprecision(1) << name << "の分散: " << variance << std::endl;
+
+    double sum = 0.0;
+    for (const auto& value : container) {
+        sum += static_cast<double>(value);
+    }
+
+    const double average = sum / static_cast<double>(container.size());
+
+    double sum_of_squares = 0.0;
+    for (const auto& value : container) {
+        const double diff = static_cast<double>(value) - average;
+        sum_of_squares += diff * diff;
+    }
+
+    return sum_of_squares / static_cast<double>(container.size());
 }
 
-/**
- * @brief メイン関数 - 各種コンテナのベンチマークを実行
- */
-int main() {
+void run() {
     std::cout << "===== C++コンテナベンチマーク =====\n";
     std::cout << "要素数: " << BenchmarkConfig::Size << "\n\n";
 
@@ -144,42 +139,43 @@ int main() {
     static std::array<BenchmarkConfig::DataType, BenchmarkConfig::Size> src_array;
 
     // 各種コンテナの定義
-    std::vector<BenchmarkConfig::DataType> vec;  // 動的配列
-    std::deque<BenchmarkConfig::DataType> deq;   // 両端キュー
-    std::list<BenchmarkConfig::DataType> lis;    // 双方向リスト
+    std::vector<BenchmarkConfig::DataType> vector;  // 動的配列
+    std::deque<BenchmarkConfig::DataType> deque;   // 両端キュー
+    std::list<BenchmarkConfig::DataType> list;    // 双方向リスト
 
     // ----- 各ベンチマークの実行 -----
 
     // 元データの生成
+    std::cout << "● 固定長配列（元データ）に乱数を格納\n";
     generate_source_data(src_array, BenchmarkConfig::MinRandomValue, BenchmarkConfig::MaxRandomValue);
 
     // データコピー性能の計測
     std::cout << "\n● データコピー性能\n";
     // vector（メモリ予約なし）へのコピー
-    vec.clear();
+    vector.clear();
     {
         CScopeProfiler profiler("vector_reserveなし");
-        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vec));
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vector));
     }
     // vector（メモリ予約あり）へのコピー
     // これ以降のベンチマークで使用する`vec`はこの状態で初期化される
-    vec.clear();
-    vec.reserve(BenchmarkConfig::Size);
+    vector.clear();
+    vector.reserve(BenchmarkConfig::Size);
     {
         CScopeProfiler profiler("vector_reserveあり");
-        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vec));
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(vector));
     }
     // dequeへのコピー
-    deq.clear();
+    deque.clear();
     {
         CScopeProfiler profiler("deque");
-        std::copy(src_array.begin(), src_array.end(), std::back_inserter(deq));
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(deque));
     }
     // listへのコピー
-    lis.clear();
+    list.clear();
     {
         CScopeProfiler profiler("list");
-        std::copy(src_array.begin(), src_array.end(), std::back_inserter(lis));
+        std::copy(src_array.begin(), src_array.end(), std::back_inserter(list));
     }
 
     // シーケンシャル読み取り性能の計測
@@ -203,36 +199,69 @@ int main() {
     // vectorのシーケンシャル読み取り
     {
         CScopeProfiler profiler("vector");
-        read_container(vec);
+        read_container(vector);
     }
     // dequeのシーケンシャル読み取り
     {
         CScopeProfiler profiler("deque");
-        read_container(deq);
+        read_container(deque);
     }
     // listのシーケンシャル読み取り
     {
         CScopeProfiler profiler("list");
-        read_container(lis);
+        read_container(list);
     }
 
     // 先頭要素の表示
     std::cout << "\n● 先頭 " << BenchmarkConfig::DisplayCount << " 要素の確認\n";
-    print_first_n_elements(vec, BenchmarkConfig::DisplayCount, "vector");
-    print_first_n_elements(deq, BenchmarkConfig::DisplayCount, "deque");
-    print_first_n_elements(lis, BenchmarkConfig::DisplayCount, "list");
+    print_first_n_elements(vector, BenchmarkConfig::DisplayCount, "vector");
+    print_first_n_elements(deque, BenchmarkConfig::DisplayCount, "deque");
+    print_first_n_elements(list, BenchmarkConfig::DisplayCount, "list");
 
     // 統計計算（平均値）の性能を計測
     std::cout << "\n● 平均値計算の性能\n";
-    const double avg_vec = benchmark_average("vector", vec);
-    const double avg_deq = benchmark_average("deque", deq);
-    const double avg_lis = benchmark_average("list", lis);
+    {
+        CScopeProfiler profiler("vector_平均値");
+        const double avg_vec = average(vector);
+        std::cout << std::fixed << std::setprecision(3) << "vectorの平均値: " << avg_vec << std::endl;
+    }
+    {
+        CScopeProfiler profiler("deque_平均値");
+        const double avg_deq = average(deque);
+        std::cout << std::fixed << std::setprecision(3) << "dequeの平均値: " << avg_deq << std::endl;
+    }
+    {
+        CScopeProfiler profiler("list_平均値");
+        const double avg_lis = average(list);
+        std::cout << std::fixed << std::setprecision(3) << "listの平均値: " << avg_lis << std::endl;
+    }
 
     // 統計計算（分散）の性能を計測
     std::cout << "\n● 分散計算の性能\n";
-    benchmark_variance("vector", vec, avg_vec);
-    benchmark_variance("deque", deq, avg_deq);
-    benchmark_variance("list", lis, avg_lis);
+    {
+        CScopeProfiler profiler("vector_分散");
+        const double var_vec = variance(vector);
+        std::cout << std::fixed << std::setprecision(1) << "vectorの分散: " << var_vec << std::endl;
+    }
+    {
+        CScopeProfiler profiler("deque_分散");
+        const double var_deq = variance(deque);
+        std::cout << std::fixed << std::setprecision(1) << "dequeの分散: " << var_deq << std::endl;
+    }
+    {
+        CScopeProfiler profiler("list_分散");
+        const double var_lis = variance(list);
+        std::cout << std::fixed << std::setprecision(1) << "listの分散: " << var_lis << std::endl;
+    }
+    
+    std::cout << "\n===== ベンチマーク終了 =====\n";
+}
 
+/**
+ * @brief メイン関数 - 各種コンテナのベンチマークを実行
+ */
+int main() {
+    CScopeProfiler profiler("全体処理");
+    run();
     return 0;
 }
