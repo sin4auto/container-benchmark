@@ -1,7 +1,6 @@
 #include <algorithm>    // std::generate, std::copy, std::copy_n, std::min
 #include <array>        // std::array
 #include <chrono>       // std::chrono::high_resolution_clock, std::chrono::duration, std::chrono::duration_cast, std::chrono::time_point
-#include <cmath>        // std::pow
 #include <deque>        // std::deque
 #include <iomanip>      // std::setprecision, std::fixed
 #include <iostream>     // std::cout, std::cin, std::endl
