@@ -1,166 +1,129 @@
-[日本語](#日本語) | [English](#english)
+# C++ / Rust コンテナベンチマーク
 
-# C++コンテナベンチマーク (C++ Container Benchmark)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## 概要
+- C++（`std::vector` / `std::deque` / `std::list`）と Rust（`Vec` / `VecDeque` / `LinkedList`）で同一ワークロードを実行し、主要コンテナの性能を比較。
+- コピー性能・シーケンシャル読み取り・統計量（平均・分散）を測定して、振る舞いを定量的に把握します。
+- 単一の `Makefile` で `main` バイナリを C++ / Rust いずれからでも生成可能。
 
-<br>
+## クイックスタート
+1. **ツールチェーン**: C++17 対応コンパイラ（g++ / clang++）と Rust stable (`rustc`) を用意。
+2. **取得**:
+   ```bash
+   git clone <repo-url>
+   cd container-benchmark
+   ```
+3. **ベンチマーク実行**:
+   ```bash
+   make cpp-bench   # C++ 版ビルド & 実行
+   make rust-bench  # Rust 版ビルド & 実行
+   ```
+   - 各ターゲットは `build/<lang>/main` を生成し、最後に `./main` を上書きします。
+4. **クリーンアップ**:
+   ```bash
+   make clean
+   ```
 
-## <a name="日本語"></a> 日本語
+## リポジトリ構成
+- `vector_deque_list.cpp` — C++17 実装。設定値は `BenchmarkConfig` に集約。
+- `vector_deque_list.rs` — Rust 実装。`config` モジュール内で設定を管理し、`std::hint::black_box` で読み取り最適化を防止。
+- `Makefile` — `cpp-bench` / `rust-bench` / `clean` ターゲットを定義。
+- `build/` — ビルド結果を保持（初回実行時に作成）。
 
-これは、C++の標準ライブラリで提供される主要なシーケンスコンテナ（`std::vector`, `std::deque`, `std::list`）の基本的な性能を比較するためのベンチマークプログラムです。
+## ベンチマークシナリオ
+- **コピー**: 共通データから各コンテナへ投入し、割り当て動作を比較。
+- **シーケンシャル読み取り**: `READ_REPEAT_COUNT` 回ループしつつ `i64` に加算、`black_box` でコード除去を防止。
+- **統計量**: 平均と分散を計算し、イテレータコストを評価。
+- **表示**: 先頭 `DISPLAY_COUNT` 件と経過時間（ミリ秒）をすべて出力。
 
-コンテナの特性がパフォーマンスにどのように影響するかを、実際の実行時間を通じて直感的に理解することを目的としています。
+## カスタマイズ
+- **データサイズ**: C++ は `BenchmarkConfig::Size`、Rust は `ELEMENT_COUNT` を調整。
+- **乱数範囲**: C++ の `MinRandomValue` / `MaxRandomValue`、Rust の `RANDOM_MIN` / `RANDOM_MAX` を更新。
+- **ビルドフラグ**: `Makefile` 内の `g++` / `rustc` 呼び出しを編集して最適化レベルや警告を変更。
 
-### 主な特徴
+## Make ターゲット
+| ターゲット | 説明 |
+| ---------- | ---- |
+| `make` / `make all` | `cpp-bench` → `rust-bench` の順に実行 |
+| `make cpp-bench` | C++ 版をビルド・実行（成果物: `build/cpp/main`）|
+| `make rust-bench` | Rust 版をビルド・実行（成果物: `build/rust/main`）|
+| `make clean` | `build/` と `./main` を削除 |
 
-このベンチマークでは、以下の項目について各コンテナの性能を計測します。
+> **注意**: 両言語のバイナリが必要な場合は `build/cpp/main` と `build/rust/main` を直接利用してください。
 
-*   **データコピー性能**:
-    `std::array`から各コンテナへのデータコピーにかかる時間。
-    *   `std::vector`については、`reserve()`を呼び出して事前にメモリを確保した場合としない場合の比較も行います。
-*   **シーケンシャルアクセス性能**:
-    コンテナの全要素を順番に読み取る際の速度。
-*   **統計計算性能**:
-    全要素の平均値および分散を計算する時間。
+## 結果の読み方
+- ミリ秒が小さいほど高速。コンテナ間および言語間で比較。
+- `Vec` / `vector` と `LinkedList` の差はキャッシュヒット率やポインタ追跡コストの影響が大きい。
+- Rust : 読み取り結果が `0.00 ms` になる場合は最新版に更新し、`black_box` が効いているか確認。
 
-### 動作環境
+## トラブルシュート
+- **コンパイラが見つからない**: `g++` / `rustc` が PATH にあるか確認し、必要ならインストール。
+- **メモリ不足**: `Size` / `ELEMENT_COUNT` を小さくする。
+- **乱数を固定したい**: 両言語ともにシードを固定値へ変更。
 
-*   C++17 以上をサポートするC++コンパイラ (g++, Clang など)
+## ライセンス
+MIT License（詳細は `LICENSE.md` を参照）。
 
-### 使用方法
+# C++ / Rust container-benchmark
 
-#### 1. リポジトリのクローン
-```bash
-git clone https://github.com/sin4auto/cpp-container-benchmark.git
-cd cpp-container-benchmark
-```
+## Overview
+- Compare `std::vector`, `std::deque`, `std::list` with `Vec`, `VecDeque`, `LinkedList` under identical workloads.
+- Measure copy throughput, sequential reads, and statistics to understand trade-offs.
+- Ship a single Makefile so `main` can be produced from either toolchain with consistent flags.
 
-#### 2. 動作確認
-オンラインコンパイラ「[Wandbox](https://wandbox.org/)」の C++ (gcc) で動作確認しています。
-ローカル環境でコンパイルする場合は、以下のようなコマンドを使用してください。
+## Quickstart
+1. **Toolchains**: Install a C++17 compiler (g++/clang++) and Rust stable (`rustc`).
+2. **Clone**:
+   ```bash
+   git clone <repo-url>
+   cd container-benchmark
+   ```
+3. **Run benchmarks**:
+   ```bash
+   make cpp-bench
+   make rust-bench
+   ```
+   - Each target writes to `build/<lang>/main` and copies the binary to `./main`.
+4. **Cleanup**:
+   ```bash
+   make clean
+   ```
 
-```bash
-g++ -o benchmark vector_deque_list.cpp -std=c++17 -O2
-```
+## Repository Layout
+- `vector_deque_list.cpp` — C++17 implementation with `BenchmarkConfig`.
+- `vector_deque_list.rs` — Rust implementation; configuration lives in `config`; sequential reads call `std::hint::black_box`.
+- `Makefile` — Defines `cpp-bench`, `rust-bench`, `clean`.
+- `build/` — Generated on demand to store compiled binaries.
 
-### 実行結果の例
-実行すると、各処理の実行時間がミリ秒単位で表示されます。
-```text
-===== C++コンテナベンチマーク =====
-要素数: 1000000
+## Benchmark Scenarios
+- **Copy** — Load each container from the shared dataset to highlight allocation behaviour.
+- **Sequential read** — Iterate `READ_REPEAT_COUNT` times, summing into `i64` while preventing optimisation removal.
+- **Statistics** — Compute mean and variance to expose traversal overhead.
+- **Output** — Print elapsed milliseconds plus the first `DISPLAY_COUNT` elements for sanity checks.
 
-● 固定長配列（元データ）に乱数を格納
-実行時間 (配列生成_乱数): 6.94 ms 
+## Customisation
+- **Workload size** — Edit `BenchmarkConfig::Size` (C++) or `ELEMENT_COUNT` (Rust).
+- **Random range** — Adjust `MinRandomValue`/`MaxRandomValue` or `RANDOM_MIN`/`RANDOM_MAX`.
+- **Build flags** — Modify the `g++` / `rustc` commands in `Makefile` to experiment with optimisation levels or warnings.
 
-● データコピー性能
-実行時間 (vector_reserveなし): 5.97 ms 
-実行時間 (vector_reserveあり): 0.62 ms 
-実行時間 (deque): 3.22 ms 
-実行時間 (list): 38.10 ms 
+## Make Targets
+| Target | Description |
+| ------ | ----------- |
+| `make` / `make all` | Run `cpp-bench` then `rust-bench`. |
+| `make cpp-bench` | Build & execute the C++ benchmark (`build/cpp/main`). |
+| `make rust-bench` | Build & execute the Rust benchmark (`build/rust/main`). |
+| `make clean` | Remove `build/` and `./main`. |
 
-● シーケンシャル読み取り性能 (10回繰り返し)
-実行時間 (vector): 5.21 ms 
-実行時間 (deque): 2.61 ms 
-実行時間 (list): 11.16 ms 
+> **Note**: To keep both binaries, use the files under `build/cpp/` and `build/rust/` directly.
 
-● 先頭 10 要素の確認
-vector: 39 -63 -91 -23 -59 -10 14 32 90 -23 
-deque: 39 -63 -91 -23 -59 -10 14 32 90 -23 
-list: 39 -63 -91 -23 -59 -10 14 32 90 -23 
+## Interpreting Results
+- Lower milliseconds imply faster operations; compare across containers and languages.
+- Large gaps between `Vec`/`vector` and `LinkedList` often stem from cache locality and pointer traversal.
+- Rust : If you still observe `0.00 ms` sequential reads, rebuild to ensure the `black_box` updates are applied.
 
-● 平均値計算の性能
-vectorの平均値: -0.122
-実行時間 (vector_平均値): 0.84 ms 
-dequeの平均値: -0.122
-実行時間 (deque_平均値): 0.94 ms 
-listの平均値: -0.122
-実行時間 (list_平均値): 1.22 ms 
-
-● 分散計算の性能
-vectorの分散: 3364.7
-実行時間 (vector_分散): 1.53 ms 
-dequeの分散: 3364.7
-実行時間 (deque_分散): 1.58 ms 
-listの分散: 3364.7
-実行時間 (list_分散): 3.66 ms 
-
-===== ベンチマーク終了 =====
-実行時間 (全体処理): 99.68 ms 
-```
-
-### ベンチマークのカスタマイズ
-`vector_deque_list.cpp`内の`BenchmarkConfig`構造体の値を変更することで、ベンチマークの条件を簡単にカスタマイズできます。
-```cpp
-struct BenchmarkConfig {
-    using DataType = int;  // データ型
-    static constexpr size_t Size = 1000000;  // 要素数
-    static constexpr size_t ReadingRepeat = 10;  // 読み取り繰り返し回数
-    static constexpr size_t DisplayCount = 10;  // 表示する要素数
-    static constexpr DataType MinRandomValue = -100; // 乱数の最小値
-    static constexpr DataType MaxRandomValue = 100;  // 乱数の最大値
-};
-```
-
----
-<br>
-
-## <a name="english"></a> English
-
-This is a benchmark program to compare the basic performance of major C++ Standard Library sequence containers: `std::vector`, `std::deque`, and `std::list`.
-
-The purpose is to provide an intuitive understanding of how the characteristics of each container affect performance, demonstrated through actual execution times.
-
-### Key Features
-
-This benchmark measures the performance of each container on the following tasks:
-
-*   **Data Copy Performance**:
-    The time it takes to copy data from `std::array` to each container.
-    *   For `std::vector`, it also compares the performance with and without pre-allocating memory using `reserve()`.
-*   **Sequential Access Performance**:
-    The speed of reading all elements in the container sequentially.
-*   **Statistical Calculation Performance**:
-    The time required to calculate the average and variance of all elements.
-
-### System Requirements
-
-*   A C++ compiler that supports C++17 or later (e.g., g++, Clang).
-
-### Usage
-
-#### 1. Clone the Repository
-```bash
-git clone https://github.com/sin4auto/cpp-container-benchmark.git
-cd cpp-container-benchmark
-```
-
-#### 2. Tested Environment
-The operation has been confirmed using C++ (gcc) on the online compiler "[Wandbox](https://wandbox.org/)".
-To compile in a local environment, use a command like the following:
-```bash
-g++ -o benchmark vector_deque_list.cpp -std=c++17 -O2
-```
-
-### Example of Execution Results
-When executed, the program displays the execution time for each process in milliseconds.
-(The output is the same as the Japanese example above)
-
-### Customizing the Benchmark
-You can easily customize the benchmark conditions by modifying the values in the `BenchmarkConfig` struct within `vector_deque_list.cpp`.```cpp
-struct BenchmarkConfig {
-    using DataType = int;  // The data type to be tested
-    static constexpr size_t Size = 1000000;  // Number of elements in the array
-    static constexpr size_t ReadingRepeat = 10;  // Number of times to repeat the read test
-    static constexpr size_t DisplayCount = 10;  // Number of elements to display
-    static constexpr DataType MinRandomValue = -100; // Minimum value for random numbers
-    static constexpr DataType MaxRandomValue = 100;  // Maximum value for random numbers
-};
-```
-
----
+## Troubleshooting
+- **Compiler missing** — Verify `g++` and `rustc` exist on the `PATH`; install via your package manager or `rustup`.
+- **High memory usage** — Reduce the element counts.
+- **Deterministic RNG** — Replace the dynamic seeds with fixed values in both sources.
 
 ## License
-This project is released under the MIT License. See the `LICENSE` file for details.
-
-## Author
-sin4auto
+Distributed under the MIT License (`LICENSE.md`).
