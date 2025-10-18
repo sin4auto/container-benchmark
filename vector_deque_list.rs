@@ -5,7 +5,7 @@
 //! - 対象コンテナ: `Vec`, `VecDeque`, `LinkedList`
 //! - 計測内容: データコピー性能・シーケンシャル読み取り・平均/分散（母分散）
 //! - 設計方針: イテレータ中心／各ベンチケースは新規コンテナで独立測定／RAII による計測
-//! - 外部クレート: 不要（擬似乱数は xorshift64* の簡易実装）
+//! - 外部クレート: 不要（擬似乱数は MT19937 の簡易実装）
 //!
 //! 実行は単一ファイル `main.rs` で可能。
 
@@ -56,36 +56,92 @@ impl Drop for ScopeProfiler {
     }
 }
 
-/// xorshift64* による擬似乱数生成器（外部依存なし）。
+/// MT19937 による擬似乱数生成器（外部依存なし）。
 ///
-/// 本用途では一様整数乱数を高速に生成できればよいため、品質より軽さを優先する。
-struct XorShift64 {
-    state: u64,
+/// 32bit のメルセンヌツイスタをそのまま移植し、整数範囲の一様乱数を提供する。
+struct Mt19937 {
+    state: [u32; Self::N],
+    index: usize,
 }
 
-impl XorShift64 {
-    /// シードから生成器を初期化する（0 は避ける）。
+impl Mt19937 {
+    const N: usize = 624;
+    const M: usize = 397;
+    const MATRIX_A: u32 = 0x9908_B0DF;
+    const UPPER_MASK: u32 = 0x8000_0000;
+    const LOWER_MASK: u32 = 0x7FFF_FFFF;
+
+    /// シードから生成器を初期化する。
     pub fn new(seed: u64) -> Self {
-        let s = if seed == 0 { 0x9E37_79B9_7F4A_7C15 } else { seed };
-        Self { state: s }
+        let mut mt = Self { state: [0; Self::N], index: Self::N };
+        mt.reseed(seed);
+        mt
     }
 
-    /// 次の 64bit 値を生成する。
+    /// シードを再設定する。
+    fn reseed(&mut self, seed: u64) {
+        let seed32 = (seed ^ (seed >> 32)) as u32;
+        self.state[0] = seed32;
+        for i in 1..Self::N {
+            let prev = self.state[i - 1];
+            self.state[i] = 1_812_433_253u32.wrapping_mul(prev ^ (prev >> 30)).wrapping_add(i as u32);
+        }
+        self.index = Self::N;
+    }
+
+    /// 内部状態を更新する。
+    fn twist(&mut self) {
+        for i in 0..Self::N {
+            let x = (self.state[i] & Self::UPPER_MASK)
+                | (self.state[(i + 1) % Self::N] & Self::LOWER_MASK);
+            let mut xa = x >> 1;
+            if x & 1 != 0 {
+                xa ^= Self::MATRIX_A;
+            }
+            self.state[i] = self.state[(i + Self::M) % Self::N] ^ xa;
+        }
+        self.index = 0;
+    }
+
+    /// 次の 32bit 値を生成する。
+    #[inline]
+    pub fn next_u32(&mut self) -> u32 {
+        if self.index >= Self::N {
+            self.twist();
+        }
+        let mut y = self.state[self.index];
+        self.index += 1;
+
+        // テンパリング（符号化を安定化）
+        y ^= y >> 11;
+        y ^= (y << 7) & 0x9D2C_5680;
+        y ^= (y << 15) & 0xEFC6_0000;
+        y ^= y >> 18;
+        y
+    }
+
+    /// 64bit 値を生成する（32bit の 2 回合成）。
     #[inline]
     pub fn next_u64(&mut self) -> u64 {
-        let mut x = self.state;
-        x ^= x >> 12;
-        x ^= x << 25;
-        x ^= x >> 27;
-        self.state = x;
-        x.wrapping_mul(0x2545_F491_4F6C_DD1D)
+        ((self.next_u32() as u64) << 32) | self.next_u32() as u64
     }
 
     /// `[min, max]` の一様整数を生成する。
     #[inline]
     pub fn next_i32_range(&mut self, min: i32, max: i32) -> i32 {
+        debug_assert!(min <= max);
         let span = (max as i64 - min as i64 + 1) as u64;
-        (self.next_u64() % span) as i32 + min
+        debug_assert!(span > 0);
+        let zone = u64::MAX - (u64::MAX % span);
+        loop {
+            let value = self.next_u64();
+            if value < zone {
+                let offset = (value % span) as i64;
+                let result = min as i64 + offset;
+                debug_assert!(((i32::MIN as i64)..=(i32::MAX as i64)).contains(&result));
+                return result as i32;
+            }
+        }
     }
 }
 
@@ -104,7 +160,7 @@ fn generate_source(size: usize, min_v: i32, max_v: i32) -> Vec<i32> {
         .as_nanos() as u64;
 
     let _profiler = ScopeProfiler::new("乱数配列生成");
-    let mut rng = XorShift64::new(seed);
+    let mut rng = Mt19937::new(seed);
 
     (0..size).map(|_| rng.next_i32_range(min_v, max_v)).collect()
 }
