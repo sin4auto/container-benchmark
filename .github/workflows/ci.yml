@@ -1,32 +1,15 @@
-# ワークフローの名前
-name: C++ CI
+name: CI
 
-# ワークフローが実行されるタイミングを指定
 on:
-  # mainブランチにプッシュされたとき
   push:
     branches: [ "main" ]
-  # プルリクエストが作成されたとき
   pull_request:
     branches: [ "main" ]
 
-# 実行する一連のタスク（ジョブ）を定義
 jobs:
-  # ジョブの名前（ここでは build-and-run）
   build-and-run:
-    # ジョブを実行する仮想環境の種類（Ubuntuの最新版）
     runs-on: ubuntu-latest
-
-    # ジョブの具体的な手順（ステップ）
     steps:
-      # 1. リポジトリのコードを仮想環境にチェックアウトする
       - uses: actions/checkout@v4
-
-      # 2. コードをコンパイルする
-      - name: Compile the benchmark
-        # READMEに記載されているコマンドを実行
-        run: g++ -o benchmark vector_deque_list.cpp -std=c++17 -O2
-
-      # 3. コンパイルされたプログラムを実行する
-      - name: Run the benchmark
-        run: ./benchmark
+      - name: Build the benchmark via Makefile
+        run: make
