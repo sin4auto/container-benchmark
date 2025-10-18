@@ -1,6 +1,10 @@
+// Path: vector_deque_list.cpp
+// What: Benchmark for vector/deque/list + helpers (avg/variance)
+// Why : Measure copy/read/statistics performance; keep code simple & clear
+// RELEVANT FILES: Makefile, README.md, vector_deque_list.rs
 #include <algorithm>    // std::generate, std::copy, std::copy_n, std::min
 #include <array>        // std::array
-#include <chrono>       // std::chrono::high_resolution_clock, std::chrono::duration, std::chrono::duration_cast, std::chrono::time_point
+#include <chrono>       // std::chrono::steady_clock, std::chrono::duration, std::chrono::duration_cast, std::chrono::time_point
 #include <deque>        // std::deque
 #include <iomanip>      // std::setprecision, std::fixed
 #include <iostream>     // std::cout, std::cin, std::endl
@@ -25,19 +29,19 @@ public:
      * @param mark 計測対象の名前
      */
     explicit CScopeProfiler(const std::string& mark)
-        : m_start_time(std::chrono::high_resolution_clock::now()), m_mark(mark) {}
+        : m_start_time(std::chrono::steady_clock::now()), m_mark(mark) {}
 
     /**
      * @brief デストラクタ - 経過時間を計算して出力
      */
     ~CScopeProfiler() {
-        auto elapsed_time = std::chrono::high_resolution_clock::now() - m_start_time;
+        auto elapsed_time = std::chrono::steady_clock::now() - m_start_time;
         double elapsed_time_milli = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(elapsed_time).count();
         std::cout << std::fixed << std::setprecision(2) << "実行時間 (" << m_mark << "): " << elapsed_time_milli << " ms " << std::endl;
     }
 
 private:
-    std::chrono::time_point<std::chrono::high_resolution_clock> m_start_time; // 計測開始時刻
+    std::chrono::time_point<std::chrono::steady_clock> m_start_time; // 計測開始時刻
     std::string m_mark;  // 計測対象のマーク（ラベル）
 };
 
@@ -107,27 +111,29 @@ double average(const Container& container) {
 
 /**
  * @brief コンテナの分散を計算して返すヘルパー関数
+ *
+ * Welford法（1パス・数値安定）で母分散を計算します。
+ * 空コンテナは 0.0 を返します。サンプル分散が必要な場合は
+ * `M2 / (n - 1)` に変更してください（n >= 2 前提）。
  */
 template<typename Container>
 double variance(const Container& container) {
     if (container.empty()) {
         return 0.0;
     }
-
-    double sum = 0.0;
+    // Welford法: 1パスで母分散を算出
+    double count = 0.0;
+    double mean = 0.0;
+    double m2 = 0.0;
     for (const auto& value : container) {
-        sum += static_cast<double>(value);
+        const double x = static_cast<double>(value);
+        count += 1.0;
+        const double delta = x - mean;
+        mean += delta / count;
+        m2 += delta * (x - mean);
     }
-
-    const double average = sum / static_cast<double>(container.size());
-
-    double sum_of_squares = 0.0;
-    for (const auto& value : container) {
-        const double diff = static_cast<double>(value) - average;
-        sum_of_squares += diff * diff;
-    }
-
-    return sum_of_squares / static_cast<double>(container.size());
+    // count > 0 が保証されるのでそのまま割る（population variance）
+    return m2 / count;
 }
 
 /**

@@ -6,7 +6,7 @@ cpp-bench: build-cpp exec-cpp
 
 build-cpp:
 	mkdir -p build/cpp
-	g++ -std=c++17 -O2 -Wall -Wextra -pedantic -o build/cpp/main vector_deque_list.cpp
+	g++ -std=c++17 -O3 -Wall -Wextra -pedantic -o build/cpp/main vector_deque_list.cpp
 	cp build/cpp/main main
 
 exec-cpp:
@@ -16,7 +16,7 @@ rust-bench: build-rust exec-rust
 
 build-rust:
 	mkdir -p build/rust
-	rustc -C opt-level=2 -o build/rust/main vector_deque_list.rs
+	rustc -C opt-level=3 -o build/rust/main vector_deque_list.rs
 	cp build/rust/main main
 
 exec-rust:
